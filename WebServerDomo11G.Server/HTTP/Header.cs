@@ -19,5 +19,6 @@ namespace WebServerDomo11G.Server.HTTP
 
 		public string Name { get; init; }
 		public string Value { get; set; }
-	}
+        public int MyProperty { get; set; }
+    }
 }
