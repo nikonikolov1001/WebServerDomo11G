@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using WebServerDomo11G.Server.Contracts;
+using WebServerDomo11G.Server.HTTP.Routing;
 
 namespace WebServerDomo11G.Server
 {
@@ -14,14 +16,31 @@ namespace WebServerDomo11G.Server
 		private int port;
 		private TcpListener serverListener;
 
-		public HttpServer(string ipAddress, int port)
+		private readonly RoutingTable routes;
+		public HttpServer(string ipAddress, 
+			int port, 
+			Action<IRoutingTable> routingTableConfiguration)
 		{
 			this.port = port;
 			this.ipAddress = IPAddress.Parse(ipAddress);
 			serverListener = new TcpListener(this.ipAddress,this.port);
+
+			routingTableConfiguration(this.routes = new RoutingTable());
 		}
 
-		public void Start()
+
+		public HttpServer(int port, Action<IRoutingTable> routingTable)
+		    :this("127.0.0.1",port,routingTable)
+		{ 
+		
+		}
+
+        public HttpServer(int port, Action<IRoutingTable> routingTable)
+            : this(8000, routingTable)
+        {
+
+        }
+        public void Start()
 		{
 			serverListener.Start();
 
@@ -32,27 +51,22 @@ namespace WebServerDomo11G.Server
 				var connection = serverListener.AcceptTcpClient();
 				var networkStream = connection.GetStream();
 				var requestString = ReadRequest(networkStream);
-				//WriteResponse(networkStream, "Hello from the server");
+                Console.WriteLine(requestString);
+				var request = Request.Parse(requestString);
 				//connection.Close();
+				var response = routes.MatchRequest(request);
 
+				WriteResponse(networkStream, response);
+
+				connection.Close();
 			}
 
 		}
 
-		private void WriteResponse(NetworkStream networkStream,string message)
+		private void WriteResponse(NetworkStream networkStream, Response response)
 		{
-			var content = message;
-			var contentLength = Encoding.UTF8.GetByteCount(content);
-
-			var response = $@"HTTP/1.1 200 OK
-Content-Type: text/plain; charset=UTF-8
-Content-Length: {contentLength}
-MyHeader:MyValue
-
-{content}";
-
-			byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-			networkStream.Write(responseBytes);
+			networkStream.Write(Encoding.UTF8.GetBytes(response.ToString());
+			networkStream
 		}
 
 		private string ReadRequest(NetworkStream networkStream)
